@@ -13,6 +13,7 @@ ssh-keygen -t ed25519
 
 // Also the inventory.init is a example for a cluster with 4 nodes.
 
+You can ran the following commands or run the script k8s-deployment.sh that have the same content.
 
 sudo apt update
 
@@ -43,9 +44,6 @@ calico_felix_prometheusmetricsenabled: true
 EOF
 
 sed -i 's/# containerd_snapshotter: "native"/containerd_snapshotter: "overlayfs"/' inventory/mycluster/group_vars/all/containerd.yml
-
-sed -i 's/enable_nodelocaldns: true/enable_nodelocaldns: false/' inventory/mycluster/group_vars/k8s_cluster/k8s-cluster.yml
-
 
 cat <<EOF >> inventory/mycluster/group_vars/k8s_cluster/k8s-cluster.yml
 
