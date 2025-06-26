@@ -1,0 +1,18 @@
+---
+- name: Load peermem and configure /etc/modules-load.d/nvidia-peermem.conf
+  hosts: all
+  become: yes
+  tasks:
+    - name: Load peermem kernel module
+      shell: modprobe nvidia_peermem
+
+    - name: Create nvidia-peermem.conf if it doesn't exist
+      ansible.builtin.command:
+        cmd: touch /etc/modules-load.d/nvidia-peermem.conf
+        creates: /etc/modules-load.d/nvidia-peermem.conf
+
+    - name: Add nvidia-peermem to modules-load.d configuration
+      ansible.builtin.lineinfile:
+        path: /etc/modules-load.d/nvidia-peermem.conf
+        line: "nvidia-peermem"
+        state: present

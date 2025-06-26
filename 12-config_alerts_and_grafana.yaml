@@ -1,0 +1,12 @@
+---
+- name: Copy kubeconfig from root and configure kubectl auto-completion
+  hosts: localhost
+  become: no 
+  tasks:
+    - name: Copy kubeconfig
+      ansible.builtin.shell: |
+        /usr/local/bin/kubectl apply -f general-alerts.yaml
+        /usr/local/bin/kubectl apply -f gpu-alerts.yaml 
+        GPW=`/usr/local/bin/kubectl get secret -n monitoring prometheus-grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo`
+        export GRAFANA_URL=http://admin:${GPW}@localhost:3000
+        ~/venv/bin/grafana-import import -i VP_K8S_Monitoring.json 

@@ -1,0 +1,67 @@
+- name: Create systemd services for Prometheus and Grafana port-forwarding
+  hosts: kube_control_plane
+  become: true
+  vars:
+    kubeconfig_path: /home/ubuntu/.kube/config
+    kubectl_path: /usr/local/bin/kubectl
+  tasks:
+    - name: Create systemd service for Prometheus port-forward
+      copy:
+        dest: /etc/systemd/system/prometheus-port-forward.service
+        content: |
+          [Unit]
+          Description=Kubernetes Port Forward for Prometheus
+          After=network.target
+
+          [Service]
+          Type=simple
+          Environment=KUBECONFIG={{ kubeconfig_path }}
+          ExecStart={{ kubectl_path }} port-forward svc/prometheus-kube-prometheus-prometheus -n monitoring 9090
+          Restart=always
+          RestartSec=10
+          User=ubuntu
+          StandardOutput=journal
+          StandardError=journal
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Reload systemd
+
+    - name: Create systemd service for Grafana port-forward
+      copy:
+        dest: /etc/systemd/system/grafana-port-forward.service
+        content: |
+          [Unit]
+          Description=Kubernetes Port Forward for Grafana
+          After=network.target
+
+          [Service]
+          Type=simple
+          Environment=KUBECONFIG={{ kubeconfig_path }}
+          ExecStart={{ kubectl_path }} port-forward svc/prometheus-grafana -n monitoring 3000
+          Restart=always
+          RestartSec=10
+          User=ubuntu
+          StandardOutput=journal
+          StandardError=journal
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Reload systemd
+
+    - name: Enable and start Prometheus port-forward service
+      systemd:
+        name: prometheus-port-forward.service
+        enabled: true
+        state: started
+
+    - name: Enable and start Grafana port-forward service
+      systemd:
+        name: grafana-port-forward.service
+        enabled: true
+        state: started
+
+  handlers:
+    - name: Reload systemd
+      command: systemctl daemon-reexec
+

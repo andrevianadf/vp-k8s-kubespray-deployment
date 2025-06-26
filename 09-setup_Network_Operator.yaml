@@ -1,0 +1,34 @@
+---
+- name: Install GPU and Network operators
+  hosts: localhost 
+  gather_facts: no
+  become: yes
+  tasks:
+
+    - name: Copy over Network Operator values.yaml
+      copy:
+        src: network-operator-values.yaml
+        dest: /tmp/network-operator-values.yaml
+        mode: '0755'
+
+    - name: Add Nvidia Helm repo
+      command: helm repo add nvidia https://helm.ngc.nvidia.com/nvidia
+
+    - name: Update Helm repo
+      command: helm repo update
+
+    - name: Check Helm repo list
+      command: helm repo list
+      register: helm_repo_list
+      ignore_errors: true
+    - debug:
+        var: helm_repo_list.stdout_lines
+
+    - name: Install NVIDIA Network Operator
+      shell: >
+        helm install network-operator nvidia/network-operator \
+          -n nvidia-network-operator \
+          --create-namespace \
+          --version v24.1.0 \
+          -f /tmp/network-operator-values.yaml \
+          --wait

@@ -1,0 +1,15 @@
+# NicClusterPolicy CR values:
+deployCR: true
+ofedDriver:
+  deploy: false 
+rdmaSharedDevicePlugin:
+  deploy: false
+
+secondaryNetwork:
+  deploy: false
+  multus:
+    deploy: false
+  ipoib:
+    deploy: false
+  ipamPlugin:
+    deploy: false

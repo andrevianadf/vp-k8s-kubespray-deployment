@@ -1,0 +1,50 @@
+---
+- name: Install NVIDIA Container Toolkit for containerd
+  hosts: all
+  become: yes
+  tasks:
+    - name: Check for NVIDIA GPU
+      shell: |
+        lspci | grep -i nvidia || echo "no_nvidia"
+      register: nvidia_gpu_check
+      changed_when: false
+
+    - name: Fail if no NVIDIA GPU is found
+      fail:
+        msg: "No NVIDIA GPU detected. Skipping NVIDIA Container Toolkit installation."
+      when: "'no_nvidia' in nvidia_gpu_check.stdout"
+
+    - name: Add NVIDIA GPG key
+      apt_key:
+        url: https://nvidia.github.io/libnvidia-container/gpgkey
+        state: present
+      when: "'no_nvidia' not in nvidia_gpu_check.stdout"
+
+    - name: Add NVIDIA repository
+      apt_repository:
+        repo: "deb https://nvidia.github.io/libnvidia-container/stable/deb/$(ARCH) /"
+        state: present
+        filename: nvidia-container-toolkit
+      when: "'no_nvidia' not in nvidia_gpu_check.stdout"
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+      when: "'no_nvidia' not in nvidia_gpu_check.stdout"
+
+    - name: Install NVIDIA Container Toolkit
+      apt:
+        name: nvidia-container-toolkit
+        state: present
+      when: "'no_nvidia' not in nvidia_gpu_check.stdout"
+
+    - name: Configure containerd to use NVIDIA runtime
+      command: sudo nvidia-ctk runtime configure --runtime=containerd
+      when: "'no_nvidia' not in nvidia_gpu_check.stdout"
+
+    - name: Restart containerd
+      systemd:
+        name: containerd
+        state: restarted
+        enabled: yes
+      when: "'no_nvidia' not in nvidia_gpu_check.stdout"

@@ -1,0 +1,18 @@
+---
+- name: Enable NVIDIA Persistence Mode
+  hosts: all
+  become: yes
+  tasks:
+    - name: Ensure persistence mode is enabled in nvidia-persistenced.service
+      replace:
+        path: /lib/systemd/system/nvidia-persistenced.service
+        regexp: '--no-persistence-mode'
+        replace: ''
+
+    - name: Reload systemd daemon
+      command: systemctl daemon-reload
+
+    - name: Restart nvidia-persistenced service
+      systemd:
+        name: nvidia-persistenced
+        state: restarted

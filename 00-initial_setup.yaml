@@ -1,0 +1,6 @@
+#!/usr/bin/env ansible-playbook
+---
+ - import_playbook: 01-enable_persistence_mode.yaml 
+ - import_playbook: 02-enable_peermem.yaml
+ - import_playbook: 03-disable_unattended_upgrades.yaml
+ - import_playbook: 04-disable_acs.yaml 

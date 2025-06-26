@@ -1,0 +1,10 @@
+#!/usr/bin/env ansible-playbook
+---
+ - import_playbook: 05-install_nvidia-container-toolkit.yaml
+ - import_playbook: 06-install_helm.yaml
+ - import_playbook: 07-setup_GPU_Operator.yaml 
+ - import_playbook: 08-deploy_prometheus.yaml 
+ - import_playbook: 09-setup_Network_Operator.yaml 
+ - import_playbook: 10-config_kubeconfig_completation.yaml 
+ - import_playbook: 11-port_forwards.yaml
+ - import_playbook: 12-config_alerts_and_grafana.yaml 

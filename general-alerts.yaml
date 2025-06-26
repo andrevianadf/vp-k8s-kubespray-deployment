@@ -1,0 +1,121 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: general-alerts
+  namespace: monitoring  # Prometheus namespace
+  labels:
+    release: prometheus 
+spec:
+  groups:
+    - name: node.rules
+      rules:
+        # Computer Down
+        - alert: InstanceDown
+          expr: up == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Instance {{ $labels.instance }} is down"
+            description: "No data from {{ $labels.instance }} for 2 minutes."
+
+        - alert: NodeDown
+          expr: absent(up{job="node-exporter"})  # Adjust job name as needed
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Node down"
+            description: "Prometheus has stopped receiving metrics from one or more nodes."
+
+      # Disk Space Low (< 15%)
+        - alert: DiskSpaceLow
+          expr: (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) < 0.15
+          for: 3m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Disk space low on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+            description: "Disk {{ $labels.mountpoint }} on {{ $labels.instance }} has less than 15% free space."
+  
+        # High CPU Usage (> 85%)
+        - alert: HighCPUUsage
+          expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+          for: 3m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High CPU usage on {{ $labels.instance }}"
+            description: "CPU usage is above 85% for 3 minutes (current: {{ $value | printf \"%.1f\" }}%)."
+  
+        # High IO Wait (> 15%)
+        - alert: HighIOWait
+          expr: avg by (instance) (rate(node_cpu_seconds_total{mode="iowait"}[5m])) * 100 > 15
+          for: 3m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High IO wait on {{ $labels.instance }}"
+            description: "IO wait > 15% for 3 minutes (current: {{ $value | printf \"%.1f\" }}%)."
+  
+        # High Disk IOPS (> 1000 reads or writes per second)
+        - alert: HighDiskIOPS
+          expr: (rate(node_disk_reads_completed_total[5m]) + rate(node_disk_writes_completed_total[5m])) > 1000
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High disk IOPS on {{ $labels.instance }}"
+            description: "Disk IOPS exceeded 1000/s for 2 minutes (current: {{ $value | printf \"%.0f\" }} IOPS)."
+  
+        # High Disk Throughput (> 100 MB/s read or write)
+        - alert: HighDiskThroughput
+          expr: (rate(node_disk_read_bytes_total[5m]) + rate(node_disk_written_bytes_total[5m])) > 100*1024*1024
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High disk throughput on {{ $labels.instance }}"
+            description: "Disk throughput > 100MB/s for 2 minutes (current: {{ $value | humanize1024 }}B/s)."
+  
+        # High Network Usage (> 100 MB/s in or out)
+        - alert: HighNetworkThroughput
+          expr: (rate(node_network_receive_bytes_total[5m]) + rate(node_network_transmit_bytes_total[5m])) > 100*1024*1024
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High network usage on {{ $labels.instance }}"
+            description: "Network traffic > 100MB/s on {{ $labels.instance }} for 2 minutes ({{ $value | humanize1024 }}B/s)."
+  
+    - name: k8s.rules
+      rules:
+        # OOM Killed Pod
+        - alert: KubePodContainerOOMKilled
+          expr: kube_pod_container_status_last_terminated_reason{reason="OOMKilled"} == 1
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "OOMKilled in pod {{ $labels.namespace }}/{{ $labels.pod }} (container: {{ $labels.container }})"
+            description: "Container {{ $labels.container }} in pod {{ $labels.namespace }}/{{ $labels.pod }} was killed due to out of memory."
+
+    - name: container.rules
+      rules:
+        - alert: HighContainerNetworkUsage
+          expr: (rate(container_network_receive_bytes_total[5m]) + rate(container_network_transmit_bytes_total[5m])) > 50*1024*1024
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High network usage in container {{ $labels.namespace }}/{{ $labels.pod }} ({{ $labels.name }})"
+            description: "Container is using >50MB/s network traffic ({{ $value | humanize1024 }}B/s)."
+
+        - alert: HighContainerDiskIO
+          expr: (rate(container_fs_reads_bytes_total[5m]) + rate(container_fs_writes_bytes_total[5m])) > 50*1024*1024
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High disk IO in container {{ $labels.namespace }}/{{ $labels.pod }} ({{ $labels.name }})"
+            description: "Container is using >50MB/s disk I/O ({{ $value | humanize1024 }}B/s)."

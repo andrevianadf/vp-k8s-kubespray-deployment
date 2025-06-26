@@ -1,0 +1,65 @@
+---
+- name: Install Prometheus Stack and ServiceMonitor for DCGM Exporter
+  hosts: localhost
+  become: true
+  vars:
+    monitoring_namespace: "monitoring"
+    prometheus_release_name: "prometheus"
+    prometheus_values_file: "/tmp/prometheus-values.yaml"
+    dcgm_servicemonitor_manifest: "/tmp/dcgm_servicemonitor.yaml"
+
+  tasks:
+    - name: Ensure monitoring namespace exists
+      shell: |
+        kubectl get ns {{ monitoring_namespace }} || kubectl create ns {{ monitoring_namespace }}
+
+    - name: Add Helm repos
+      shell: |
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts || true
+        helm repo update
+
+    - name: Write Prometheus Stack values.yaml
+      copy:
+        dest: "{{ prometheus_values_file }}"
+        content: |
+          prometheus:
+            prometheusSpec:
+              serviceMonitorSelectorNilUsesHelmValues: false
+              serviceMonitorSelector: {}
+              serviceMonitorNamespaceSelector:
+                matchNames:
+                  - nvidia-gpu-operator
+          grafana:
+            service:
+              port: 3000
+
+    - name: Install Prometheus Stack via Helm
+      shell: |
+        helm upgrade --install {{ prometheus_release_name }} prometheus-community/kube-prometheus-stack \
+          --namespace {{ monitoring_namespace }} \
+          -f {{ prometheus_values_file }}
+
+    - name: Write ServiceMonitor YAML for DCGM Exporter
+      copy:
+        dest: "{{ dcgm_servicemonitor_manifest }}"
+        content: |
+          apiVersion: monitoring.coreos.com/v1
+          kind: ServiceMonitor
+          metadata:
+            name: dcgm-exporter
+            namespace: monitoring
+            labels:
+              release: prometheus
+          spec:
+            selector:
+              matchLabels:
+                app: nvidia-dcgm-exporter
+            namespaceSelector:
+              matchNames:
+                - nvidia-gpu-operator
+            endpoints:
+              - port: gpu-metrics
+                interval: 30s
+
+    - name: Apply ServiceMonitor manifest
+      shell: kubectl apply -f {{ dcgm_servicemonitor_manifest }}

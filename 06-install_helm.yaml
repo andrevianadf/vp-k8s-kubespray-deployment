@@ -1,0 +1,30 @@
+---
+- name: Install Helm on Control Planes
+  hosts: kube_control_plane
+  become: yes
+  tasks:
+    - name: Add Helm GPG key
+      shell: >
+        curl https://baltocdn.com/helm/signing.asc | gpg --dearmor -o /usr/share/keyrings/helm.gpg
+      args:
+        creates: /usr/share/keyrings/helm.gpg
+
+    - name: Add Helm GPG key permissions
+      command: chmod a+r /usr/share/keyrings/helm.gpg
+
+    - name: Add Helm apt repository
+      lineinfile:
+        path: /etc/apt/sources.list.d/helm-stable-debian.list
+        line: "deb [arch=amd64 signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main"
+        create: yes
+
+    - name: Update apt package index
+      apt:
+        update_cache: yes
+
+    - name: Install Helm
+      apt:
+        name:
+          - helm
+        state: present
+        allow_unauthenticated: yes

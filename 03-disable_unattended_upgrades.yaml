@@ -1,0 +1,17 @@
+---
+- name: Stop and purge unattended-upgrades package
+  hosts: all
+  become: yes
+  tasks:
+    - name: Stop unattended-upgrades service
+      service:
+        name: unattended-upgrades
+        state: stopped
+        enabled: no
+      ignore_errors: yes
+
+    - name: Purge unattended-upgrades package
+      apt:
+        name: unattended-upgrades
+        state: absent
+        purge: yes

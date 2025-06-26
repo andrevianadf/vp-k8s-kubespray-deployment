@@ -1,0 +1,36 @@
+---
+- name: Run script for PCI devices with ACS support and disable it
+  hosts: all
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: Run the command and store the output in a variable
+      shell: "sudo lspci -vvv | grep ACSCtl | grep SrcValid+ | wc -l"
+      register: lspci_output
+
+    - name: Create voltagepark directory if it doesn't exist
+      file:
+        path: /opt/voltagepark
+        state: directory
+        mode: "0755"
+
+    - name: Create disableacs.sh script
+      copy:
+        content: |
+          #!/bin/bash
+          for BDF in `lspci -d "*:*:*" | awk '{print $1}'`; do
+            # skip if it doesn't support ACS
+            sudo setpci -v -s ${BDF} ECAP_ACS+0x6.w > /dev/null 2>&1
+            if [ $? -ne 0 ]; then
+              continue
+            fi
+            sudo setpci -v -s ${BDF} ECAP_ACS+0x6.w=0000
+          done
+        dest: /opt/voltagepark/disableacs.sh
+        mode: "0755"
+
+    - name: Add crontab entry
+      shell: "(crontab -l ; echo '@reboot /opt/voltagepark/disableacs.sh') | crontab -"
+
+    - name: Run disableacs.sh script
+      shell: "/opt/voltagepark/disableacs.sh"

@@ -1,0 +1,71 @@
+apiVersion: kubeflow.org/v1
+kind: MPIJob
+metadata:
+  name: nccl-test-h100
+  namespace: nccl-test
+spec:
+  slotsPerWorker: 8
+  runPolicy:
+    cleanPodPolicy: None 
+    ttlSecondsAfterFinished: 86400
+  mpiReplicaSpecs:
+    Launcher:
+      replicas: 1
+      template:
+        spec:
+          hostNetwork: true
+          dnsPolicy: ClusterFirstWithHostNet
+          containers:
+          - name: nccl
+            image: andrevianadf/vp-nccl-tests:cuda12.2 
+            command: ["/bin/bash", "-c"]
+            args:
+              - |
+                set -ex
+                mpirun -np 16 \
+                -bind-to none \
+                -x LD_LIBRARY_PATH=$LD_LIBRARY_PATH \
+                -x NCCL_SOCKET_IFNAME=enp27s0f0np0 \
+                -x NCCL_COLLNET_ENABLE=0 \
+                /opt/nccl-tests/build/all_reduce_perf -b 512M -e 8G -f 2 -g 1
+            env:
+              - name: OMPI_ALLOW_RUN_AS_ROOT
+                value: "1"
+              - name: OMPI_ALLOW_RUN_AS_ROOT_CONFIRM
+                value: "1"
+            resources:
+              requests:
+                cpu: 2
+                memory: 900Mi
+            securityContext:
+              privileged: true
+    Worker:
+      replicas: 2
+      template:
+        spec:
+          hostNetwork: true
+          dnsPolicy: ClusterFirstWithHostNet
+          containers:
+          - name: nccl
+            image: andrevianadf/vp-nccl-tests:cuda12.2 
+            command: ["/bin/bash", "-c"]
+            args: ["sleep infinity"]
+            resources:
+              limits:
+                cpu: 190
+                memory: 900G
+                nvidia.com/gpu: 8
+              requests:
+                cpu: 190
+                memory: 900G
+                nvidia.com/gpu: 8
+            securityContext:
+              privileged: true
+            volumeMounts:
+              - mountPath: /dev/shm
+                name: dshm
+          volumes:
+            - name: dshm
+              emptyDir:
+                medium: Memory
+

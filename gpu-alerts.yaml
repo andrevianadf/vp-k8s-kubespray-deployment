@@ -1,0 +1,55 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: gpu-alerts
+  namespace: monitoring  # Prometheus namespace
+  labels:
+    release: prometheus 
+spec:
+  groups:
+  - name: gpu.rules
+    rules:
+    - alert: GPUHighUtilization
+      expr: avg_over_time(DCGM_FI_DEV_GPU_UTIL[1m]) > 90
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: "GPU Utilization High"
+        description: "GPU utilization is above 90% for over 2 minutes on {{ $labels.instance }}."
+
+    - alert: GPUHighTemperature
+      expr: DCGM_FI_DEV_GPU_TEMP > 80
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: "GPU Temperature High"
+        description: "GPU temperature above 80°C for over 2 minutes on {{ $labels.instance }}."
+
+    - alert: GPUECCErrorsDetected
+      expr: increase(DCGM_FI_DEV_CORRECTABLE_REMAPPED_ROWS[5m]) > 0
+      for: 0m
+      labels:
+        severity: critical
+      annotations:
+        summary: "GPU ECC Correctable Errors Detected"
+        description: "Correctable ECC errors detected in the last 5 minutes on {{ $labels.instance }}."
+
+    - alert: GPUNonCorrectableECCErrors
+      expr: increase(DCGM_FI_DEV_UNCORRECTABLE_REMAPPED_ROWS[5m]) > 0
+      for: 0m
+      labels:
+        severity: critical
+      annotations:
+        summary: "GPU Non-Correctable ECC Errors Detected"
+        description: "Non-correctable ECC errors detected in the last 5 minutes on {{ $labels.instance }}."
+
+    - alert: GPUXIDErrorsDetected
+      expr: increase(DCGM_FI_DEV_XID_ERRORS[5m]) > 0
+      for: 0m
+      labels:
+        severity: critical
+      annotations:
+        summary: "GPU XID Error Detected"
+        description: "XID error occurred in the last 5 minutes on {{ $labels.instance }}. Check GPU logs for details."
